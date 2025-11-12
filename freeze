@@ -1,0 +1,175 @@
+-- ❄️ Xlic Animation Freezer - Frozen GUI + Keyboard Toggle
+-- LocalScript
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- == GUI CREATION ==
+local gui = Instance.new("ScreenGui")
+gui.Name = "XlicAnimationFreezer"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 130)
+frame.Position = UDim2.new(0.5, -140, 0.5, -65)
+frame.BackgroundColor3 = Color3.fromRGB(160, 200, 255)
+frame.BackgroundTransparency = 0.35
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.ClipsDescendants = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 15)
+corner.Parent = frame
+
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 32)
+topBar.BackgroundColor3 = Color3.fromRGB(210, 240, 255)
+topBar.BackgroundTransparency = 0.15
+topBar.BorderSizePixel = 0
+topBar.Parent = frame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 15)
+topCorner.Parent = topBar
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 1, 0)
+title.Position = UDim2.new(0, 5, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "❄️ Xlic Animation Freezer ❄️"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextStrokeTransparency = 0.7
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = topBar
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.82, 0, 0, 45)
+button.Position = UDim2.new(0.09, 0, 0.45, 0)
+button.BackgroundColor3 = Color3.fromRGB(100, 160, 255)
+button.BackgroundTransparency = 0.15
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.GothamSemibold
+button.TextSize = 14
+button.Text = "Freeze Animations"
+button.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = button
+
+-- == ANIMATION FREEZE LOGIC ==
+local frozen = false
+local storedAnimators = {}
+
+local function getCharacter()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+local function removeAnimations()
+	local char = getCharacter()
+	storedAnimators = {}
+
+	for _, obj in ipairs(char:GetDescendants()) do
+		if obj:IsA("Animator") or obj:IsA("AnimationController") then
+			local clone = obj:Clone()
+			table.insert(storedAnimators, {Parent = obj.Parent, Clone = clone})
+			obj:Destroy()
+		end
+	end
+
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		local animateScript = char:FindFirstChild("Animate")
+		if animateScript then
+			animateScript.Disabled = true
+			table.insert(storedAnimators, {Parent = char, Clone = animateScript})
+			animateScript:Destroy()
+		end
+	end
+end
+
+local function restoreAnimations()
+	local char = getCharacter()
+	for _, data in ipairs(storedAnimators) do
+		if data.Parent and data.Clone then
+			local new = data.Clone:Clone()
+			new.Parent = data.Parent
+		end
+	end
+	storedAnimators = {}
+end
+
+button.MouseButton1Click:Connect(function()
+	button.Active = false
+	button.AutoButtonColor = false
+
+	if not frozen then
+		button.Text = "Freezing..."
+		pcall(removeAnimations)
+		button.Text = "Revert Animations"
+		button.BackgroundColor3 = Color3.fromRGB(180, 90, 90)
+	else
+		button.Text = "Reverting..."
+		pcall(restoreAnimations)
+		button.Text = "Freeze Animations"
+		button.BackgroundColor3 = Color3.fromRGB(100, 160, 255)
+	end
+
+	frozen = not frozen
+	button.Active = true
+	button.AutoButtonColor = true
+end)
+
+player.CharacterAdded:Connect(function()
+	frozen = false
+	storedAnimators = {}
+	button.Text = "Freeze Animations"
+	button.BackgroundColor3 = Color3.fromRGB(100, 160, 255)
+end)
+
+-- == SNOW INSIDE FRAME ==
+local function createSnowflake()
+	local snowflake = Instance.new("TextLabel")
+	snowflake.Text = "❄️"
+	snowflake.TextColor3 = Color3.fromRGB(255, 255, 255)
+	snowflake.BackgroundTransparency = 1
+	snowflake.Size = UDim2.new(0, math.random(8, 16), 0, math.random(8, 16))
+	snowflake.Position = UDim2.new(math.random(), 0, 0, -10)
+	snowflake.ZIndex = 10
+	snowflake.Parent = frame
+
+	local fallTime = math.random(4, 7)
+	local xDrift = math.random(-30, 30)
+	local goal = {Position = UDim2.new(snowflake.Position.X.Scale, xDrift, 1, 10)}
+
+	local tween = TweenService:Create(snowflake, TweenInfo.new(fallTime, Enum.EasingStyle.Linear), goal)
+	tween:Play()
+
+	tween.Completed:Connect(function()
+		snowflake:Destroy()
+	end)
+end
+
+task.spawn(function()
+	while task.wait(0.25) do
+		createSnowflake()
+	end
+end)
+
+-- == KEYBOARD TOGGLE (LeftCtrl or L) ==
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.L then
+		frame.Visible = not frame.Visible
+	end
+end)
